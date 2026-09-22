@@ -1,4 +1,4 @@
-const CACHE_NAME = "next-bite-v1";
+const CACHE_NAME = "next-bite-v2";
 
 const APP_FILES = [
   "./",
@@ -7,7 +7,7 @@ const APP_FILES = [
   "./apple-touch-icon-bite.png"
 ];
 
-// Install and cache the core app files
+// Cache only the core NEXT // BITE app files.
 self.addEventListener("install", event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
@@ -18,7 +18,7 @@ self.addEventListener("install", event => {
   self.skipWaiting();
 });
 
-// Remove old caches when we update versions later
+// Delete older NEXT // BITE caches.
 self.addEventListener("activate", event => {
   event.waitUntil(
     caches.keys().then(cacheNames => {
@@ -33,26 +33,53 @@ self.addEventListener("activate", event => {
   self.clients.claim();
 });
 
-// Use the network when available.
-// Fall back to the cached app when offline.
 self.addEventListener("fetch", event => {
-  if (event.request.method !== "GET") return;
+  const request = event.request;
 
+  // Never interfere with POST/etc.
+  if (request.method !== "GET") {
+    return;
+  }
+
+  const url = new URL(request.url);
+
+  // IMPORTANT:
+  // Do not cache Cloudflare/API/database requests.
+  // Let the browser handle all outside requests normally.
+  if (url.origin !== self.location.origin) {
+    return;
+  }
+
+  // NEXT // BITE files use network-first.
   event.respondWith(
-    fetch(event.request)
+    fetch(request)
       .then(response => {
-        const copy = response.clone();
+        // Only cache successful same-origin responses.
+        if (response.ok) {
+          const copy = response.clone();
 
-        caches.open(CACHE_NAME).then(cache => {
-          cache.put(event.request, copy);
-        });
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(request, copy);
+          });
+        }
 
         return response;
       })
-      .catch(() => {
-        return caches.match(event.request).then(cached => {
-          return cached || caches.match("./index.html");
-        });
+      .catch(async () => {
+        const cached =
+          await caches.match(request);
+
+        if (cached) {
+          return cached;
+        }
+
+        // If navigation fails while offline,
+        // open the cached app shell.
+        if (request.mode === "navigate") {
+          return caches.match("./index.html");
+        }
+
+        return Response.error();
       })
   );
 });
