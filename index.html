@@ -2206,33 +2206,11 @@
         try {
           const params =
             new URLSearchParams({
-              search_terms:
-                query,
-
-              search_simple:
-                "1",
-
-              action:
-                "process",
-
-              json:
-                "1",
-
-              page_size:
-                "20",
-
-              fields: [
-                "code",
-                "product_name",
-                "brands",
-                "quantity",
-                "serving_size",
-                "nutriments"
-              ].join(",")
+              q: query
             });
 
           const url =
-            "https://world.openfoodfacts.org/cgi/search.pl?" +
+            "https://next-bite-api-git.aaronrozsa.workers.dev/search?" +
             params.toString();
 
           const response =
@@ -2260,10 +2238,31 @@
               result.products ||
               []
             )
-              .map(
-                normalizeOFFProduct
-              )
-              .filter(Boolean);
+              .map(product => ({
+                ...product,
+                category:
+                  product.category ||
+                  "database",
+                detail:
+                  [
+                    product.brand,
+                    product.quantity
+                  ]
+                    .filter(Boolean)
+                    .join(" • ") ||
+                  product.detail ||
+                  "Packaged food",
+                externalCode:
+                  product.code || "",
+                source:
+                  product.source ||
+                  "OPEN FOOD FACTS"
+              }))
+              .filter(
+                product =>
+                  product &&
+                  product.name
+              );
 
           if (
             !liveFoodResults.length
