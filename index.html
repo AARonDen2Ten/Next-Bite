@@ -57,6 +57,11 @@
       cursor: pointer;
     }
 
+    button:disabled {
+      opacity: 0.55;
+      cursor: default;
+    }
+
     .app {
       width: 100%;
       max-width: 720px;
@@ -480,11 +485,19 @@
       color: var(--muted);
     }
 
+    .search-status {
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+      min-height: 18px;
+      margin-top: 8px;
+    }
+
     .tabs {
       display: flex;
       gap: 8px;
       overflow-x: auto;
-      padding: 2px 0 14px;
+      padding: 12px 0 2px;
       scrollbar-width: none;
     }
 
@@ -513,7 +526,7 @@
       font-size: 12px;
       font-weight: 900;
       letter-spacing: 1.5px;
-      margin: 12px 2px 8px;
+      margin: 18px 2px 8px;
     }
 
     .food-option {
@@ -649,16 +662,11 @@
       margin-top: 8px;
     }
 
-    .loading {
-      color: var(--muted);
-      padding: 22px 4px;
-      text-align: center;
-    }
-
     .empty {
       color: var(--muted);
       padding: 20px 4px;
       text-align: center;
+      line-height: 1.5;
     }
 
     .toast {
@@ -797,7 +805,7 @@
         <button class="action-card" id="browseFoodBtn">
           <span class="action-icon">⌕</span>
           <span class="action-title">Find Food</span>
-          <span class="action-copy">Search or browse the food library.</span>
+          <span class="action-copy">Search the live food database.</span>
         </button>
 
         <button class="action-card" id="barcodeBtn">
@@ -808,7 +816,7 @@
 
         <button class="action-card" id="savedFoodsBtn">
           <span class="action-icon">★</span>
-          <span class="action-title">Saved Foods</span>
+          <span class="action-title">Recent Foods</span>
           <span class="action-copy">Foods you've used before.</span>
         </button>
 
@@ -880,7 +888,7 @@
     </button>
   </nav>
 
-  <!-- FOOD LIBRARY -->
+  <!-- FOOD SEARCH -->
   <div id="foodLibraryModal" class="modal hidden">
     <div class="sheet">
       <div class="sheet-head">
@@ -894,15 +902,24 @@
           <input
             id="foodSearch"
             type="search"
-            placeholder="Search turkey, yogurt, rice..."
+            placeholder="Search Premier Protein, yogurt..."
             autocomplete="off"
           />
         </div>
 
+        <button
+          id="liveFoodSearchBtn"
+          class="primary"
+          style="margin-top:10px;"
+        >
+          Search Food Database
+        </button>
+
+        <div id="liveSearchStatus" class="search-status"></div>
+
         <div class="tabs">
           <button class="tab active" data-food-tab="all">All</button>
           <button class="tab" data-food-tab="recent">Recent</button>
-          <button class="tab" data-food-tab="favorites">Favorites</button>
           <button class="tab" data-food-tab="protein">Protein</button>
           <button class="tab" data-food-tab="carbs">Carbs</button>
           <button class="tab" data-food-tab="produce">Produce</button>
@@ -924,13 +941,20 @@
       <div class="selected-food">
         <h3 id="selectedFoodName"></h3>
         <div class="selected-source" id="selectedFoodDetail"></div>
-        <span class="source-badge" id="selectedFoodSource">NEXT // BITE LIBRARY</span>
+        <span class="source-badge" id="selectedFoodSource"></span>
       </div>
 
       <div class="grid2">
         <div class="field">
           <label for="portionAmount">Amount</label>
-          <input id="portionAmount" type="number" inputmode="decimal" min="0.01" step="0.1" value="1" />
+          <input
+            id="portionAmount"
+            type="number"
+            inputmode="decimal"
+            min="0.01"
+            step="0.1"
+            value="1"
+          />
         </div>
 
         <div class="field">
@@ -962,14 +986,17 @@
             <strong id="previewProtein">0g</strong>
             <span>Protein</span>
           </div>
+
           <div class="nutrition-stat">
             <strong id="previewCarbs">0g</strong>
             <span>Carbs</span>
           </div>
+
           <div class="nutrition-stat">
             <strong id="previewFat">0g</strong>
             <span>Fat</span>
           </div>
+
           <div class="nutrition-stat">
             <strong id="previewFiber">0g</strong>
             <span>Fiber</span>
@@ -979,7 +1006,9 @@
         <div class="more-nutrition" id="moreNutrition"></div>
       </div>
 
-      <button class="primary" id="addSelectedFoodBtn">Add to Day</button>
+      <button class="primary" id="addSelectedFoodBtn">
+        Add to Day
+      </button>
     </div>
   </div>
 
@@ -999,7 +1028,13 @@
       <div class="grid2">
         <div class="field">
           <label>Amount</label>
-          <input id="manualAmount" type="number" value="1" min="0.01" step="0.1" />
+          <input
+            id="manualAmount"
+            type="number"
+            value="1"
+            min="0.01"
+            step="0.1"
+          />
         </div>
 
         <div class="field">
@@ -1054,7 +1089,9 @@
         <input id="manualFiber" type="number" value="0" step="0.1" />
       </div>
 
-      <button class="primary" id="addManualBtn">Add to Day</button>
+      <button class="primary" id="addManualBtn">
+        Add to Day
+      </button>
     </div>
   </div>
 
@@ -1093,7 +1130,9 @@
         </div>
       </div>
 
-      <button class="primary" id="saveGoalsBtn">Save Goals</button>
+      <button class="primary" id="saveGoalsBtn">
+        Save Goals
+      </button>
     </div>
   </div>
 
@@ -1104,48 +1143,17 @@
       const STORAGE_KEY = "nextBiteDataV1";
 
       /*
-        Built-in foods are intentionally a starter library.
-        Values are approximate reference values and can vary by brand/preparation.
-        Live packaged-food search will be layered on top of this library.
+        Small convenience library only.
+
+        Live database results are the primary source for packaged/branded
+        foods. These local entries are mainly for testing and quick access.
       */
       const FOOD_LIBRARY = [
-        {
-          id: "turkey-93-7-cooked",
-          name: "Ground Turkey, 93/7, Cooked",
-          category: "protein",
-          detail: "Generic • cooked",
-          baseAmount: 100,
-          baseUnit: "g",
-          calories: 203,
-          protein: 27.4,
-          carbs: 0,
-          fat: 10.4,
-          fiber: 0,
-          sodium: 87,
-          sugar: 0,
-          units: ["g", "oz"]
-        },
-        {
-          id: "turkey-93-7-raw",
-          name: "Ground Turkey, 93/7, Raw",
-          category: "protein",
-          detail: "Generic • raw",
-          baseAmount: 100,
-          baseUnit: "g",
-          calories: 172,
-          protein: 21,
-          carbs: 0,
-          fat: 9,
-          fiber: 0,
-          sodium: 75,
-          sugar: 0,
-          units: ["g", "oz"]
-        },
         {
           id: "chicken-breast-cooked",
           name: "Chicken Breast, Skinless, Cooked",
           category: "protein",
-          detail: "Generic • cooked",
+          detail: "Generic reference • cooked",
           baseAmount: 100,
           baseUnit: "g",
           calories: 165,
@@ -1155,13 +1163,14 @@
           fiber: 0,
           sodium: 74,
           sugar: 0,
-          units: ["g", "oz"]
+          units: ["g", "oz"],
+          source: "NEXT // BITE QUICK FOOD"
         },
         {
           id: "egg-large",
           name: "Egg, Large",
           category: "protein",
-          detail: "1 large egg",
+          detail: "Generic reference • 1 large egg",
           baseAmount: 1,
           baseUnit: "piece",
           calories: 72,
@@ -1171,61 +1180,14 @@
           fiber: 0,
           sodium: 71,
           sugar: 0.2,
-          units: ["piece"]
-        },
-        {
-          id: "fage-0",
-          name: "Fage Total 0% Plain Greek Yogurt",
-          category: "protein",
-          detail: "Plain nonfat Greek yogurt",
-          baseAmount: 170,
-          baseUnit: "g",
-          calories: 90,
-          protein: 18,
-          carbs: 5,
-          fat: 0,
-          fiber: 0,
-          sodium: 65,
-          sugar: 5,
-          units: ["g", "serving"]
-        },
-        {
-          id: "cottage-cheese-lowfat",
-          name: "Cottage Cheese, Low Fat",
-          category: "protein",
-          detail: "Generic",
-          baseAmount: 113,
-          baseUnit: "g",
-          calories: 90,
-          protein: 13,
-          carbs: 5,
-          fat: 2.5,
-          fiber: 0,
-          sodium: 350,
-          sugar: 4,
-          units: ["g", "oz", "serving"]
-        },
-        {
-          id: "premier-vanilla",
-          name: "Premier Protein Shake, Vanilla",
-          category: "protein",
-          detail: "11 fl oz shake",
-          baseAmount: 1,
-          baseUnit: "container",
-          calories: 160,
-          protein: 30,
-          carbs: 5,
-          fat: 3,
-          fiber: 1,
-          sodium: 370,
-          sugar: 1,
-          units: ["container"]
+          units: ["piece"],
+          source: "NEXT // BITE QUICK FOOD"
         },
         {
           id: "white-rice-cooked",
           name: "White Rice, Cooked",
           category: "carbs",
-          detail: "Generic • cooked",
+          detail: "Generic reference • cooked",
           baseAmount: 100,
           baseUnit: "g",
           calories: 130,
@@ -1235,29 +1197,14 @@
           fiber: 0.4,
           sodium: 1,
           sugar: 0.1,
-          units: ["g", "oz"]
-        },
-        {
-          id: "brown-rice-cooked",
-          name: "Brown Rice, Cooked",
-          category: "carbs",
-          detail: "Generic • cooked",
-          baseAmount: 100,
-          baseUnit: "g",
-          calories: 123,
-          protein: 2.7,
-          carbs: 25.6,
-          fat: 1,
-          fiber: 1.6,
-          sodium: 4,
-          sugar: 0.2,
-          units: ["g", "oz"]
+          units: ["g", "oz"],
+          source: "NEXT // BITE QUICK FOOD"
         },
         {
           id: "oats-dry",
           name: "Old Fashioned Oats, Dry",
           category: "carbs",
-          detail: "Generic rolled oats",
+          detail: "Generic reference",
           baseAmount: 40,
           baseUnit: "g",
           calories: 150,
@@ -1267,13 +1214,14 @@
           fiber: 4,
           sodium: 0,
           sugar: 1,
-          units: ["g", "oz", "serving"]
+          units: ["g", "oz", "serving"],
+          source: "NEXT // BITE QUICK FOOD"
         },
         {
           id: "sweet-potato-cooked",
           name: "Sweet Potato, Cooked",
           category: "carbs",
-          detail: "Generic",
+          detail: "Generic reference",
           baseAmount: 100,
           baseUnit: "g",
           calories: 90,
@@ -1283,29 +1231,14 @@
           fiber: 3.3,
           sodium: 36,
           sugar: 6.5,
-          units: ["g", "oz"]
-        },
-        {
-          id: "lentils-cooked",
-          name: "Lentils, Cooked",
-          category: "carbs",
-          detail: "Generic",
-          baseAmount: 100,
-          baseUnit: "g",
-          calories: 116,
-          protein: 9,
-          carbs: 20.1,
-          fat: 0.4,
-          fiber: 7.9,
-          sodium: 2,
-          sugar: 1.8,
-          units: ["g", "oz"]
+          units: ["g", "oz"],
+          source: "NEXT // BITE QUICK FOOD"
         },
         {
           id: "banana",
           name: "Banana",
           category: "produce",
-          detail: "1 medium",
+          detail: "Generic reference • 1 medium",
           baseAmount: 1,
           baseUnit: "piece",
           calories: 105,
@@ -1315,13 +1248,14 @@
           fiber: 3.1,
           sodium: 1,
           sugar: 14.4,
-          units: ["piece"]
+          units: ["piece"],
+          source: "NEXT // BITE QUICK FOOD"
         },
         {
           id: "apple",
           name: "Apple",
           category: "produce",
-          detail: "1 medium",
+          detail: "Generic reference • 1 medium",
           baseAmount: 1,
           baseUnit: "piece",
           calories: 95,
@@ -1331,13 +1265,14 @@
           fiber: 4.4,
           sodium: 2,
           sugar: 19,
-          units: ["piece"]
+          units: ["piece"],
+          source: "NEXT // BITE QUICK FOOD"
         },
         {
           id: "raspberries",
           name: "Raspberries",
           category: "produce",
-          detail: "Fresh",
+          detail: "Generic reference • fresh",
           baseAmount: 100,
           baseUnit: "g",
           calories: 52,
@@ -1347,48 +1282,19 @@
           fiber: 6.5,
           sodium: 1,
           sugar: 4.4,
-          units: ["g", "oz"]
-        },
-        {
-          id: "broccoli",
-          name: "Broccoli",
-          category: "produce",
-          detail: "Raw",
-          baseAmount: 100,
-          baseUnit: "g",
-          calories: 34,
-          protein: 2.8,
-          carbs: 6.6,
-          fat: 0.4,
-          fiber: 2.6,
-          sodium: 33,
-          sugar: 1.7,
-          units: ["g", "oz"]
-        },
-        {
-          id: "avocado",
-          name: "Avocado",
-          category: "produce",
-          detail: "Raw",
-          baseAmount: 100,
-          baseUnit: "g",
-          calories: 160,
-          protein: 2,
-          carbs: 8.5,
-          fat: 14.7,
-          fiber: 6.7,
-          sodium: 7,
-          sugar: 0.7,
-          units: ["g", "oz"]
+          units: ["g", "oz"],
+          source: "NEXT // BITE QUICK FOOD"
         }
       ];
 
       const defaultData = {
         activeProfileId: "profile-1",
+
         profiles: [
           {
             id: "profile-1",
             name: "My Profile",
+
             goals: {
               calories: 2200,
               protein: 170,
@@ -1396,36 +1302,48 @@
               fat: 70,
               fiber: 30
             },
+
             logs: {},
-            recentFoodIds: [],
-            favoriteFoodIds: []
+            recentFoods: []
           }
         ]
       };
 
       let data = loadData();
+
       let selectedDate = dateKey(new Date());
       let currentFoodTab = "all";
       let selectedFood = null;
+      let liveFoodResults = [];
 
       function loadData() {
         try {
-          const stored = localStorage.getItem(STORAGE_KEY);
+          const stored =
+            localStorage.getItem(STORAGE_KEY);
 
           if (!stored) {
-            return JSON.parse(JSON.stringify(defaultData));
+            return JSON.parse(
+              JSON.stringify(defaultData)
+            );
           }
 
           const parsed = JSON.parse(stored);
 
-          if (!parsed.profiles || !parsed.profiles.length) {
-            return JSON.parse(JSON.stringify(defaultData));
+          if (
+            !parsed.profiles ||
+            !parsed.profiles.length
+          ) {
+            return JSON.parse(
+              JSON.stringify(defaultData)
+            );
           }
 
           parsed.profiles.forEach(profile => {
-            profile.logs = profile.logs || {};
-            profile.recentFoodIds = profile.recentFoodIds || [];
-            profile.favoriteFoodIds = profile.favoriteFoodIds || [];
+            profile.logs =
+              profile.logs || {};
+
+            profile.recentFoods =
+              profile.recentFoods || [];
 
             profile.goals = {
               calories: 2200,
@@ -1438,35 +1356,68 @@
           });
 
           return parsed;
+
         } catch {
-          return JSON.parse(JSON.stringify(defaultData));
+          return JSON.parse(
+            JSON.stringify(defaultData)
+          );
         }
       }
 
       function saveData() {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify(data)
+        );
       }
 
       function activeProfile() {
-        return data.profiles.find(p => p.id === data.activeProfileId) || data.profiles[0];
+        return (
+          data.profiles.find(
+            profile =>
+              profile.id ===
+              data.activeProfileId
+          ) ||
+          data.profiles[0]
+        );
       }
 
       function dateKey(date) {
-        const y = date.getFullYear();
-        const m = String(date.getMonth() + 1).padStart(2, "0");
-        const d = String(date.getDate()).padStart(2, "0");
+        const y =
+          date.getFullYear();
+
+        const m =
+          String(
+            date.getMonth() + 1
+          ).padStart(2, "0");
+
+        const d =
+          String(
+            date.getDate()
+          ).padStart(2, "0");
+
         return `${y}-${m}-${d}`;
       }
 
       function dateFromKey(key) {
-        const [y, m, d] = key.split("-").map(Number);
-        return new Date(y, m - 1, d);
+        const [y, m, d] =
+          key.split("-").map(Number);
+
+        return new Date(
+          y,
+          m - 1,
+          d
+        );
       }
 
       function dayLog(create = false) {
-        const profile = activeProfile();
+        const profile =
+          activeProfile();
 
-        if (!profile.logs[selectedDate] && create) {
+        if (
+          !profile.logs[selectedDate] &&
+          create
+        ) {
           profile.logs[selectedDate] = {
             breakfast: [],
             lunch: [],
@@ -1475,26 +1426,51 @@
           };
         }
 
-        return profile.logs[selectedDate] || {
-          breakfast: [],
-          lunch: [],
-          dinner: [],
-          snacks: []
-        };
+        return (
+          profile.logs[selectedDate] || {
+            breakfast: [],
+            lunch: [],
+            dinner: [],
+            snacks: []
+          }
+        );
       }
 
       function uid() {
-        return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        return (
+          `${Date.now()}-` +
+          Math.random()
+            .toString(36)
+            .slice(2)
+        );
       }
 
       function num(value) {
-        const n = Number(value);
-        return Number.isFinite(n) ? n : 0;
+        const n =
+          Number(value);
+
+        return Number.isFinite(n)
+          ? n
+          : 0;
       }
 
-      function round(value, digits = 1) {
-        const factor = 10 ** digits;
-        return Math.round((num(value) + Number.EPSILON) * factor) / factor;
+      function round(
+        value,
+        digits = 1
+      ) {
+        const factor =
+          10 ** digits;
+
+        return (
+          Math.round(
+            (
+              num(value) +
+              Number.EPSILON
+            ) *
+            factor
+          ) /
+          factor
+        );
       }
 
       function escapeHTML(value) {
@@ -1507,53 +1483,109 @@
       }
 
       function showToast(message) {
-        const toast = document.getElementById("toast");
-        toast.textContent = message;
-        toast.classList.remove("hidden");
+        const toast =
+          document.getElementById("toast");
 
-        clearTimeout(showToast.timer);
+        toast.textContent =
+          message;
 
-        showToast.timer = setTimeout(() => {
-          toast.classList.add("hidden");
-        }, 2600);
+        toast.classList.remove(
+          "hidden"
+        );
+
+        clearTimeout(
+          showToast.timer
+        );
+
+        showToast.timer =
+          setTimeout(() => {
+            toast.classList.add(
+              "hidden"
+            );
+          }, 2600);
       }
 
       function openModal(id) {
-        document.getElementById(id).classList.remove("hidden");
+        document
+          .getElementById(id)
+          .classList.remove("hidden");
       }
 
       function closeModal(id) {
-        document.getElementById(id).classList.add("hidden");
+        document
+          .getElementById(id)
+          .classList.add("hidden");
       }
 
       function showPage(page) {
-        ["today", "add", "history", "more"].forEach(name => {
+        [
+          "today",
+          "add",
+          "history",
+          "more"
+        ].forEach(name => {
           document
-            .getElementById(`page-${name}`)
-            .classList.toggle("hidden", name !== page);
+            .getElementById(
+              `page-${name}`
+            )
+            .classList.toggle(
+              "hidden",
+              name !== page
+            );
         });
 
-        document.querySelectorAll(".nav-btn").forEach(btn => {
-          btn.classList.toggle("active", btn.dataset.page === page);
+        document
+          .querySelectorAll(
+            ".nav-btn"
+          )
+          .forEach(btn => {
+            btn.classList.toggle(
+              "active",
+              btn.dataset.page === page
+            );
+          });
+
+        if (page === "today") {
+          renderToday();
+        }
+
+        if (page === "add") {
+          renderRecentFoods();
+        }
+
+        if (page === "history") {
+          renderHistory();
+        }
+
+        window.scrollTo({
+          top: 0,
+          behavior: "smooth"
         });
-
-        if (page === "today") renderToday();
-        if (page === "add") renderRecentFoods();
-        if (page === "history") renderHistory();
-
-        window.scrollTo({ top: 0, behavior: "smooth" });
       }
 
       function renderProfiles() {
-        const select = document.getElementById("profileSelect");
+        const select =
+          document.getElementById(
+            "profileSelect"
+          );
 
-        select.innerHTML = data.profiles.map(profile => `
-          <option value="${escapeHTML(profile.id)}">
-            ${escapeHTML(profile.name)}
-          </option>
-        `).join("");
+        select.innerHTML =
+          data.profiles
+            .map(profile => `
+              <option
+                value="${escapeHTML(
+                  profile.id
+                )}"
+              >
+                ${escapeHTML(
+                  profile.name
+                )}
+              </option>
+            `)
+            .join("");
 
-        select.value = activeProfile().id;
+        select.value =
+          activeProfile().id;
       }
 
       function totalsForLog(log) {
@@ -1565,63 +1597,131 @@
           fiber: 0
         };
 
-        Object.values(log).flat().forEach(food => {
-          total.calories += num(food.calories);
-          total.protein += num(food.protein);
-          total.carbs += num(food.carbs);
-          total.fat += num(food.fat);
-          total.fiber += num(food.fiber);
-        });
+        Object
+          .values(log)
+          .flat()
+          .forEach(food => {
+            total.calories +=
+              num(food.calories);
+
+            total.protein +=
+              num(food.protein);
+
+            total.carbs +=
+              num(food.carbs);
+
+            total.fat +=
+              num(food.fat);
+
+            total.fiber +=
+              num(food.fiber);
+          });
 
         return total;
       }
 
       function renderToday() {
-        const profile = activeProfile();
-        const goals = profile.goals;
-        const log = dayLog();
-        const totals = totalsForLog(log);
+        const profile =
+          activeProfile();
 
-        const date = dateFromKey(selectedDate);
+        const goals =
+          profile.goals;
 
-        document.getElementById("todayDate").textContent =
-          date.toLocaleDateString(undefined, {
-            weekday: "long",
-            month: "short",
-            day: "numeric"
-          });
+        const log =
+          dayLog();
 
-        document.getElementById("usedCalories").textContent =
-          Math.round(totals.calories);
+        const totals =
+          totalsForLog(log);
 
-        document.getElementById("goalCalories").textContent =
+        const date =
+          dateFromKey(
+            selectedDate
+          );
+
+        document.getElementById(
+          "todayDate"
+        ).textContent =
+          date.toLocaleDateString(
+            undefined,
+            {
+              weekday: "long",
+              month: "short",
+              day: "numeric"
+            }
+          );
+
+        document.getElementById(
+          "usedCalories"
+        ).textContent =
+          Math.round(
+            totals.calories
+          );
+
+        document.getElementById(
+          "goalCalories"
+        ).textContent =
           goals.calories;
 
-        const remaining = goals.calories - totals.calories;
+        const remaining =
+          goals.calories -
+          totals.calories;
 
-        document.getElementById("remainingCalories").textContent =
+        document.getElementById(
+          "remainingCalories"
+        ).textContent =
           remaining >= 0
-            ? `${Math.round(remaining)} remaining`
-            : `${Math.abs(Math.round(remaining))} over target`;
+            ? `${Math.round(
+                remaining
+              )} remaining`
+            : `${Math.abs(
+                Math.round(
+                  remaining
+                )
+              )} over target`;
 
-        const pct = goals.calories
-          ? Math.min((totals.calories / goals.calories) * 100, 100)
-          : 0;
+        const pct =
+          goals.calories
+            ? Math.min(
+                (
+                  totals.calories /
+                  goals.calories
+                ) * 100,
+                100
+              )
+            : 0;
 
-        document.getElementById("calorieProgress").style.width =
+        document.getElementById(
+          "calorieProgress"
+        ).style.width =
           `${pct}%`;
 
-        document.getElementById("proteinTotal").textContent =
-          `${round(totals.protein)}g`;
+        document.getElementById(
+          "proteinTotal"
+        ).textContent =
+          `${round(
+            totals.protein
+          )}g`;
 
-        document.getElementById("carbTotal").textContent =
-          `${round(totals.carbs)}g`;
+        document.getElementById(
+          "carbTotal"
+        ).textContent =
+          `${round(
+            totals.carbs
+          )}g`;
 
-        document.getElementById("fatTotal").textContent =
-          `${round(totals.fat)}g`;
+        document.getElementById(
+          "fatTotal"
+        ).textContent =
+          `${round(
+            totals.fat
+          )}g`;
 
-        document.getElementById("fiberTotal").textContent =
-          `${round(totals.fiber)}g`;
+        document.getElementById(
+          "fiberTotal"
+        ).textContent =
+          `${round(
+            totals.fiber
+          )}g`;
 
         renderMeals(log);
       }
@@ -1634,621 +1734,1603 @@
           snacks: "Snacks"
         };
 
-        document.getElementById("mealList").innerHTML =
-          Object.keys(names).map(meal => {
-            const foods = log[meal] || [];
+        document.getElementById(
+          "mealList"
+        ).innerHTML =
+          Object
+            .keys(names)
+            .map(meal => {
+              const foods =
+                log[meal] || [];
 
-            const mealCalories = foods.reduce(
-              (sum, food) => sum + num(food.calories),
-              0
-            );
+              const mealCalories =
+                foods.reduce(
+                  (
+                    sum,
+                    food
+                  ) =>
+                    sum +
+                    num(
+                      food.calories
+                    ),
+                  0
+                );
 
-            return `
-              <div class="meal-card">
-                <div class="meal-head">
-                  <div>
-                    <div class="meal-title">${names[meal]}</div>
-                    <div class="meal-total">
-                      ${Math.round(mealCalories)} calories
+              return `
+                <div class="meal-card">
+
+                  <div class="meal-head">
+                    <div>
+                      <div class="meal-title">
+                        ${names[meal]}
+                      </div>
+
+                      <div class="meal-total">
+                        ${Math.round(
+                          mealCalories
+                        )} calories
+                      </div>
                     </div>
+
+                    <button
+                      class="tiny-btn meal-add-btn"
+                      data-meal="${meal}"
+                    >
+                      + Add
+                    </button>
                   </div>
 
-                  <button
-                    class="tiny-btn meal-add-btn"
-                    data-meal="${meal}"
-                  >
-                    + Add
-                  </button>
-                </div>
+                  ${
+                    foods.length
+                      ? foods
+                          .map(food => `
+                            <div class="food-row">
 
-                ${
-                  foods.length
-                    ? foods.map(food => `
-                        <div class="food-row">
-                          <div class="food-row-top">
-                            <div>
-                              <div class="food-name">
-                                ${escapeHTML(food.name)}
+                              <div class="food-row-top">
+                                <div>
+
+                                  <div class="food-name">
+                                    ${escapeHTML(
+                                      food.name
+                                    )}
+                                  </div>
+
+                                  <div class="food-meta">
+                                    ${escapeHTML(
+                                      food.amount
+                                    )}
+                                    ${escapeHTML(
+                                      food.unit
+                                    )}
+                                    ·
+                                    ${Math.round(
+                                      num(
+                                        food.calories
+                                      )
+                                    )} cal
+                                    ·
+                                    ${round(
+                                      food.protein
+                                    )}g protein
+                                  </div>
+
+                                </div>
                               </div>
 
-                              <div class="food-meta">
-                                ${escapeHTML(food.amount)}
-                                ${escapeHTML(food.unit)}
-                                · ${Math.round(num(food.calories))} cal
-                                · ${round(food.protein)}g protein
+                              <div class="food-actions">
+
+                                <button
+                                  class="tiny-btn duplicate-food"
+                                  data-meal="${meal}"
+                                  data-id="${food.id}"
+                                >
+                                  Duplicate
+                                </button>
+
+                                <button
+                                  class="tiny-btn danger delete-food"
+                                  data-meal="${meal}"
+                                  data-id="${food.id}"
+                                >
+                                  Delete
+                                </button>
+
                               </div>
                             </div>
-                          </div>
+                          `)
+                          .join("")
+                      : ""
+                  }
 
-                          <div class="food-actions">
-                            <button
-                              class="tiny-btn duplicate-food"
-                              data-meal="${meal}"
-                              data-id="${food.id}"
-                            >
-                              Duplicate
-                            </button>
+                </div>
+              `;
+            })
+            .join("");
 
-                            <button
-                              class="tiny-btn danger delete-food"
-                              data-meal="${meal}"
-                              data-id="${food.id}"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                      `).join("")
-                    : ""
+        document
+          .querySelectorAll(
+            ".meal-add-btn"
+          )
+          .forEach(btn => {
+            btn.addEventListener(
+              "click",
+              () => {
+                document.getElementById(
+                  "portionMeal"
+                ).value =
+                  btn.dataset.meal;
+
+                openFoodLibrary();
+              }
+            );
+          });
+
+        document
+          .querySelectorAll(
+            ".delete-food"
+          )
+          .forEach(btn => {
+            btn.addEventListener(
+              "click",
+              () => {
+                const log =
+                  dayLog(true);
+
+                log[
+                  btn.dataset.meal
+                ] =
+                  log[
+                    btn.dataset.meal
+                  ].filter(
+                    food =>
+                      food.id !==
+                      btn.dataset.id
+                  );
+
+                saveData();
+                renderAll();
+              }
+            );
+          });
+
+        document
+          .querySelectorAll(
+            ".duplicate-food"
+          )
+          .forEach(btn => {
+            btn.addEventListener(
+              "click",
+              () => {
+                const log =
+                  dayLog(true);
+
+                const original =
+                  log[
+                    btn.dataset.meal
+                  ].find(
+                    food =>
+                      food.id ===
+                      btn.dataset.id
+                  );
+
+                if (!original) {
+                  return;
                 }
-              </div>
-            `;
-          }).join("");
 
-        document.querySelectorAll(".meal-add-btn").forEach(btn => {
-          btn.addEventListener("click", () => {
-            document.getElementById("portionMeal").value = btn.dataset.meal;
-            openFoodLibrary();
+                log[
+                  btn.dataset.meal
+                ].push({
+                  ...original,
+                  id: uid()
+                });
+
+                saveData();
+                renderAll();
+
+                showToast(
+                  "Food duplicated."
+                );
+              }
+            );
           });
-        });
-
-        document.querySelectorAll(".delete-food").forEach(btn => {
-          btn.addEventListener("click", () => {
-            const log = dayLog(true);
-
-            log[btn.dataset.meal] =
-              log[btn.dataset.meal].filter(
-                food => food.id !== btn.dataset.id
-              );
-
-            saveData();
-            renderAll();
-          });
-        });
-
-        document.querySelectorAll(".duplicate-food").forEach(btn => {
-          btn.addEventListener("click", () => {
-            const log = dayLog(true);
-
-            const original =
-              log[btn.dataset.meal].find(
-                food => food.id === btn.dataset.id
-              );
-
-            if (!original) return;
-
-            log[btn.dataset.meal].push({
-              ...original,
-              id: uid()
-            });
-
-            saveData();
-            renderAll();
-            showToast("Food duplicated.");
-          });
-        });
       }
 
       function openFoodLibrary() {
-        currentFoodTab = "all";
-        document.getElementById("foodSearch").value = "";
+        currentFoodTab =
+          "all";
 
-        document.querySelectorAll("[data-food-tab]").forEach(tab => {
-          tab.classList.toggle(
-            "active",
-            tab.dataset.foodTab === "all"
-          );
-        });
+        liveFoodResults =
+          [];
+
+        document.getElementById(
+          "foodSearch"
+        ).value = "";
+
+        document.getElementById(
+          "liveSearchStatus"
+        ).textContent = "";
+
+        document
+          .querySelectorAll(
+            "[data-food-tab]"
+          )
+          .forEach(tab => {
+            tab.classList.toggle(
+              "active",
+              tab.dataset.foodTab ===
+                "all"
+            );
+          });
 
         renderFoodResults();
-        openModal("foodLibraryModal");
+
+        openModal(
+          "foodLibraryModal"
+        );
 
         setTimeout(() => {
-          document.getElementById("foodSearch").focus();
+          document.getElementById(
+            "foodSearch"
+          ).focus();
         }, 100);
       }
 
-      function getFilteredFoods() {
-        const profile = activeProfile();
+      function getRecentFoods() {
+        return (
+          activeProfile()
+            .recentFoods || []
+        );
+      }
 
+      function getFilteredLocalFoods() {
         const query =
-          document.getElementById("foodSearch")
+          document
+            .getElementById(
+              "foodSearch"
+            )
             .value
             .trim()
             .toLowerCase();
 
-        let foods = [...FOOD_LIBRARY];
+        let foods =
+          [...FOOD_LIBRARY];
 
-        if (currentFoodTab === "recent") {
-          foods = profile.recentFoodIds
-            .map(id => FOOD_LIBRARY.find(food => food.id === id))
-            .filter(Boolean);
-        }
-
-        if (currentFoodTab === "favorites") {
-          foods = profile.favoriteFoodIds
-            .map(id => FOOD_LIBRARY.find(food => food.id === id))
-            .filter(Boolean);
+        if (
+          currentFoodTab ===
+          "recent"
+        ) {
+          foods =
+            getRecentFoods();
         }
 
         if (
-          ["protein", "carbs", "produce"].includes(currentFoodTab)
+          [
+            "protein",
+            "carbs",
+            "produce"
+          ].includes(
+            currentFoodTab
+          )
         ) {
-          foods = foods.filter(
-            food => food.category === currentFoodTab
-          );
+          foods =
+            foods.filter(
+              food =>
+                food.category ===
+                currentFoodTab
+            );
         }
 
         if (query) {
-          foods = foods.filter(food =>
-            `${food.name} ${food.detail}`
-              .toLowerCase()
-              .includes(query)
-          );
-        }
-
-        if (currentFoodTab === "all") {
-          foods.sort((a, b) =>
-            a.name.localeCompare(b.name)
-          );
+          foods =
+            foods.filter(
+              food =>
+                `${food.name} ${food.detail}`
+                  .toLowerCase()
+                  .includes(query)
+            );
         }
 
         return foods;
       }
 
-      function renderFoodResults() {
-        const foods = getFilteredFoods();
-        const container = document.getElementById("foodResults");
+      function normalizeOFFProduct(
+        product
+      ) {
+        const n =
+          product.nutriments || {};
 
-        if (!foods.length) {
-          container.innerHTML = `
-            <div class="empty">
-              No matching foods yet.<br><br>
-              Try another search or use Custom Food.
-            </div>
-          `;
+        let calories =
+          num(
+            n[
+              "energy-kcal_100g"
+            ]
+          );
+
+        if (
+          !calories &&
+          num(n.energy_100g)
+        ) {
+          calories =
+            num(
+              n.energy_100g
+            ) / 4.184;
+        }
+
+        const protein =
+          num(
+            n.proteins_100g
+          );
+
+        const carbs =
+          num(
+            n.carbohydrates_100g
+          );
+
+        const fat =
+          num(
+            n.fat_100g
+          );
+
+        const fiber =
+          num(
+            n.fiber_100g
+          );
+
+        const sugar =
+          num(
+            n.sugars_100g
+          );
+
+        const sodium =
+          num(
+            n.sodium_100g
+          ) * 1000;
+
+        if (
+          !product.product_name
+        ) {
+          return null;
+        }
+
+        if (
+          calories <= 0 &&
+          protein <= 0 &&
+          carbs <= 0 &&
+          fat <= 0
+        ) {
+          return null;
+        }
+
+        return {
+          id:
+            `off-${
+              product.code ||
+              uid()
+            }`,
+
+          externalCode:
+            product.code || "",
+
+          name:
+            product.product_name,
+
+          category:
+            "database",
+
+          detail:
+            [
+              product.brands,
+              product.quantity
+            ]
+              .filter(Boolean)
+              .join(" • ") ||
+            "Packaged food",
+
+          baseAmount: 100,
+          baseUnit: "g",
+
+          calories:
+            round(calories),
+
+          protein:
+            round(protein),
+
+          carbs:
+            round(carbs),
+
+          fat:
+            round(fat),
+
+          fiber:
+            round(fiber),
+
+          sodium:
+            round(sodium),
+
+          sugar:
+            round(sugar),
+
+          units:
+            ["g", "oz"],
+
+          servingSize:
+            product.serving_size ||
+            "",
+
+          source:
+            "OPEN FOOD FACTS"
+        };
+      }
+
+      async function searchLiveFoodDatabase() {
+        const query =
+          document
+            .getElementById(
+              "foodSearch"
+            )
+            .value
+            .trim();
+
+        const status =
+          document.getElementById(
+            "liveSearchStatus"
+          );
+
+        const button =
+          document.getElementById(
+            "liveFoodSearchBtn"
+          );
+
+        if (
+          query.length < 2
+        ) {
+          showToast(
+            "Type at least 2 letters first."
+          );
+
           return;
         }
 
-        container.innerHTML = `
-          <div class="library-section-title">
-            ${foods.length} FOOD${foods.length === 1 ? "" : "S"}
-          </div>
+        status.textContent =
+          "Searching food database...";
 
-          ${foods.map(food => `
-            <button
-              class="food-option"
-              data-food-id="${food.id}"
-            >
-              <div>
-                <div class="food-option-name">
-                  ${escapeHTML(food.name)}
-                </div>
+        button.disabled =
+          true;
 
-                <div class="food-option-detail">
-                  ${escapeHTML(food.detail)}
-                </div>
-              </div>
+        button.textContent =
+          "Searching...";
 
-              <div class="food-option-cal">
-                ${Math.round(food.calories)}
-                <small>
-                  per ${food.baseAmount}${food.baseUnit === "piece" ? " piece" : food.baseUnit}
-                </small>
-              </div>
-            </button>
-          `).join("")}
-        `;
+        liveFoodResults =
+          [];
 
-        container.querySelectorAll(".food-option").forEach(btn => {
-          btn.addEventListener("click", () => {
-            const food =
-              FOOD_LIBRARY.find(
-                item => item.id === btn.dataset.foodId
-              );
+        try {
+          const params =
+            new URLSearchParams({
+              search_terms:
+                query,
 
-            if (food) selectFood(food);
+              search_simple:
+                "1",
+
+              action:
+                "process",
+
+              json:
+                "1",
+
+              page_size:
+                "20",
+
+              fields: [
+                "code",
+                "product_name",
+                "brands",
+                "quantity",
+                "serving_size",
+                "nutriments"
+              ].join(",")
+            });
+
+          const url =
+            "https://world.openfoodfacts.org/cgi/search.pl?" +
+            params.toString();
+
+          const response =
+            await fetch(url, {
+              method: "GET",
+              headers: {
+                Accept:
+                  "application/json"
+              }
+            });
+
+          if (
+            !response.ok
+          ) {
+            throw new Error(
+              `Food search failed: ${response.status}`
+            );
+          }
+
+          const result =
+            await response.json();
+
+          liveFoodResults =
+            (
+              result.products ||
+              []
+            )
+              .map(
+                normalizeOFFProduct
+              )
+              .filter(Boolean);
+
+          if (
+            !liveFoodResults.length
+          ) {
+            status.textContent =
+              "No database matches found. Try a more specific search.";
+          } else {
+            status.textContent =
+              `${liveFoodResults.length} database match${
+                liveFoodResults.length ===
+                1
+                  ? ""
+                  : "es"
+              } found`;
+          }
+
+          renderFoodResults();
+
+        } catch (error) {
+          console.error(error);
+
+          liveFoodResults =
+            [];
+
+          status.textContent =
+            "Couldn't reach the food database. Try again in a moment.";
+
+          renderFoodResults();
+
+        } finally {
+          button.disabled =
+            false;
+
+          button.textContent =
+            "Search Food Database";
+        }
+      }
+
+      function renderFoodResults() {
+        const localFoods =
+          getFilteredLocalFoods();
+
+        const container =
+          document.getElementById(
+            "foodResults"
+          );
+
+        const query =
+          document
+            .getElementById(
+              "foodSearch"
+            )
+            .value
+            .trim()
+            .toLowerCase();
+
+        const liveFoods =
+          query
+            ? liveFoodResults.filter(
+                food =>
+                  `${food.name} ${food.detail}`
+                    .toLowerCase()
+                    .includes(query)
+              )
+            : liveFoodResults;
+
+        if (
+          !localFoods.length &&
+          !liveFoods.length
+        ) {
+          container.innerHTML = `
+            <div class="empty">
+              No local matches yet.<br><br>
+              Tap <strong>Search Food Database</strong>
+              to search live products.
+            </div>
+          `;
+
+          return;
+        }
+
+        let html = "";
+
+        if (
+          liveFoods.length
+        ) {
+          html += `
+            <div class="library-section-title">
+              FOOD DATABASE
+            </div>
+
+            ${liveFoods
+              .map(
+                (
+                  food,
+                  index
+                ) => `
+                  <button
+                    class="food-option"
+                    data-live-food-index="${index}"
+                  >
+                    <div>
+
+                      <div class="food-option-name">
+                        ${escapeHTML(
+                          food.name
+                        )}
+                      </div>
+
+                      <div class="food-option-detail">
+                        ${escapeHTML(
+                          food.detail
+                        )}
+                      </div>
+
+                      ${
+                        food.servingSize
+                          ? `
+                            <div class="food-option-detail">
+                              Label serving:
+                              ${escapeHTML(
+                                food.servingSize
+                              )}
+                            </div>
+                          `
+                          : ""
+                      }
+
+                    </div>
+
+                    <div class="food-option-cal">
+                      ${Math.round(
+                        food.calories
+                      )}
+
+                      <small>
+                        per 100g
+                      </small>
+                    </div>
+                  </button>
+                `
+              )
+              .join("")}
+          `;
+        }
+
+        if (
+          localFoods.length
+        ) {
+          html += `
+            <div class="library-section-title">
+              ${
+                currentFoodTab ===
+                "recent"
+                  ? "RECENT FOODS"
+                  : "QUICK FOODS"
+              }
+            </div>
+
+            ${localFoods
+              .map(
+                (
+                  food,
+                  index
+                ) => `
+                  <button
+                    class="food-option"
+                    data-local-food-index="${index}"
+                  >
+                    <div>
+
+                      <div class="food-option-name">
+                        ${escapeHTML(
+                          food.name
+                        )}
+                      </div>
+
+                      <div class="food-option-detail">
+                        ${escapeHTML(
+                          food.detail
+                        )}
+                      </div>
+
+                    </div>
+
+                    <div class="food-option-cal">
+                      ${Math.round(
+                        food.calories
+                      )}
+
+                      <small>
+                        saved
+                      </small>
+                    </div>
+                  </button>
+                `
+              )
+              .join("")}
+          `;
+        }
+
+        container.innerHTML =
+          html;
+
+        container
+          .querySelectorAll(
+            "[data-live-food-index]"
+          )
+          .forEach(btn => {
+            btn.addEventListener(
+              "click",
+              () => {
+                const food =
+                  liveFoods[
+                    Number(
+                      btn.dataset
+                        .liveFoodIndex
+                    )
+                  ];
+
+                if (food) {
+                  selectFood(
+                    food
+                  );
+                }
+              }
+            );
           });
-        });
+
+        container
+          .querySelectorAll(
+            "[data-local-food-index]"
+          )
+          .forEach(btn => {
+            btn.addEventListener(
+              "click",
+              () => {
+                const food =
+                  localFoods[
+                    Number(
+                      btn.dataset
+                        .localFoodIndex
+                    )
+                  ];
+
+                if (food) {
+                  selectFood(
+                    food
+                  );
+                }
+              }
+            );
+          });
       }
 
       function selectFood(food) {
-        selectedFood = food;
+        selectedFood =
+          food;
 
-        document.getElementById("selectedFoodName").textContent =
+        document.getElementById(
+          "selectedFoodName"
+        ).textContent =
           food.name;
 
-        document.getElementById("selectedFoodDetail").textContent =
-          food.detail;
+        document.getElementById(
+          "selectedFoodDetail"
+        ).textContent =
+          [
+            food.detail,
+            food.servingSize
+              ? `Label serving: ${food.servingSize}`
+              : ""
+          ]
+            .filter(Boolean)
+            .join(" • ");
 
-        document.getElementById("selectedFoodSource").textContent =
-          "NEXT // BITE LIBRARY";
+        document.getElementById(
+          "selectedFoodSource"
+        ).textContent =
+          food.source ||
+          "NEXT // BITE";
 
         const unitSelect =
-          document.getElementById("portionUnit");
+          document.getElementById(
+            "portionUnit"
+          );
 
-        unitSelect.innerHTML = food.units.map(unit => `
-          <option value="${unit}">
-            ${unit}
-          </option>
-        `).join("");
+        unitSelect.innerHTML =
+          (
+            food.units || [
+              "g",
+              "oz"
+            ]
+          )
+            .map(unit => `
+              <option
+                value="${escapeHTML(
+                  unit
+                )}"
+              >
+                ${escapeHTML(
+                  unit
+                )}
+              </option>
+            `)
+            .join("");
 
-        unitSelect.value = food.baseUnit;
+        unitSelect.value =
+          food.baseUnit ||
+          "g";
 
-        document.getElementById("portionAmount").value =
-          food.baseAmount;
+        document.getElementById(
+          "portionAmount"
+        ).value =
+          food.baseAmount ||
+          100;
 
         updateNutritionPreview();
 
-        closeModal("foodLibraryModal");
-        openModal("portionModal");
+        closeModal(
+          "foodLibraryModal"
+        );
+
+        openModal(
+          "portionModal"
+        );
       }
 
-      function gramsFromAmount(amount, unit) {
-        if (unit === "g") return amount;
-        if (unit === "oz") return amount * 28.3495;
+      function gramsFromAmount(
+        amount,
+        unit
+      ) {
+        if (unit === "g") {
+          return amount;
+        }
+
+        if (unit === "oz") {
+          return (
+            amount *
+            28.349523125
+          );
+        }
+
         return null;
       }
 
-      function foodMultiplier(food, amount, unit) {
-        amount = num(amount);
+      function foodMultiplier(
+        food,
+        amount,
+        unit
+      ) {
+        amount =
+          num(amount);
 
-        if (amount <= 0) return 0;
+        if (
+          amount <= 0
+        ) {
+          return 0;
+        }
 
-        if (food.baseUnit === "g") {
-          const grams = gramsFromAmount(amount, unit);
+        if (
+          food.baseUnit ===
+          "g"
+        ) {
+          const grams =
+            gramsFromAmount(
+              amount,
+              unit
+            );
 
-          if (grams !== null) {
-            return grams / food.baseAmount;
+          if (
+            grams !== null
+          ) {
+            return (
+              grams /
+              food.baseAmount
+            );
           }
 
-          if (unit === "serving") {
+          if (
+            unit ===
+            "serving"
+          ) {
             return amount;
           }
         }
 
-        if (food.baseUnit === "piece" && unit === "piece") {
-          return amount / food.baseAmount;
+        if (
+          food.baseUnit ===
+            "piece" &&
+          unit === "piece"
+        ) {
+          return (
+            amount /
+            food.baseAmount
+          );
         }
 
         if (
-          food.baseUnit === "container" &&
-          unit === "container"
+          food.baseUnit ===
+            "container" &&
+          unit ===
+            "container"
         ) {
-          return amount / food.baseAmount;
+          return (
+            amount /
+            food.baseAmount
+          );
         }
 
-        if (unit === "serving") {
+        if (
+          unit ===
+          "serving"
+        ) {
           return amount;
         }
 
-        return amount / food.baseAmount;
+        return (
+          amount /
+          food.baseAmount
+        );
       }
 
       function nutritionForSelection() {
-        if (!selectedFood) return null;
+        if (
+          !selectedFood
+        ) {
+          return null;
+        }
 
         const amount =
-          num(document.getElementById("portionAmount").value);
+          num(
+            document.getElementById(
+              "portionAmount"
+            ).value
+          );
 
         const unit =
-          document.getElementById("portionUnit").value;
+          document.getElementById(
+            "portionUnit"
+          ).value;
 
         const multiplier =
-          foodMultiplier(selectedFood, amount, unit);
+          foodMultiplier(
+            selectedFood,
+            amount,
+            unit
+          );
 
         return {
           amount,
           unit,
-          calories: round(selectedFood.calories * multiplier),
-          protein: round(selectedFood.protein * multiplier),
-          carbs: round(selectedFood.carbs * multiplier),
-          fat: round(selectedFood.fat * multiplier),
-          fiber: round(selectedFood.fiber * multiplier),
-          sodium: round(num(selectedFood.sodium) * multiplier),
-          sugar: round(num(selectedFood.sugar) * multiplier)
+
+          calories:
+            round(
+              selectedFood.calories *
+              multiplier
+            ),
+
+          protein:
+            round(
+              selectedFood.protein *
+              multiplier
+            ),
+
+          carbs:
+            round(
+              selectedFood.carbs *
+              multiplier
+            ),
+
+          fat:
+            round(
+              selectedFood.fat *
+              multiplier
+            ),
+
+          fiber:
+            round(
+              selectedFood.fiber *
+              multiplier
+            ),
+
+          sodium:
+            round(
+              num(
+                selectedFood.sodium
+              ) *
+              multiplier
+            ),
+
+          sugar:
+            round(
+              num(
+                selectedFood.sugar
+              ) *
+              multiplier
+            )
         };
       }
 
       function updateNutritionPreview() {
-        const nutrition = nutritionForSelection();
+        const nutrition =
+          nutritionForSelection();
 
-        if (!nutrition) return;
+        if (
+          !nutrition
+        ) {
+          return;
+        }
 
-        document.getElementById("previewCalories").textContent =
-          Math.round(nutrition.calories);
+        document.getElementById(
+          "previewCalories"
+        ).textContent =
+          Math.round(
+            nutrition.calories
+          );
 
-        document.getElementById("previewProtein").textContent =
+        document.getElementById(
+          "previewProtein"
+        ).textContent =
           `${nutrition.protein}g`;
 
-        document.getElementById("previewCarbs").textContent =
+        document.getElementById(
+          "previewCarbs"
+        ).textContent =
           `${nutrition.carbs}g`;
 
-        document.getElementById("previewFat").textContent =
+        document.getElementById(
+          "previewFat"
+        ).textContent =
           `${nutrition.fat}g`;
 
-        document.getElementById("previewFiber").textContent =
+        document.getElementById(
+          "previewFiber"
+        ).textContent =
           `${nutrition.fiber}g`;
 
-        document.getElementById("moreNutrition").innerHTML = `
-          Sodium: ${Math.round(nutrition.sodium)}mg
+        document.getElementById(
+          "moreNutrition"
+        ).innerHTML = `
+          Sodium:
+          ${Math.round(
+            nutrition.sodium
+          )}mg
           &nbsp; · &nbsp;
-          Sugar: ${nutrition.sugar}g
+          Sugar:
+          ${nutrition.sugar}g
         `;
       }
 
+      function rememberRecentFood(
+        food
+      ) {
+        const profile =
+          activeProfile();
+
+        profile.recentFoods =
+          profile.recentFoods ||
+          [];
+
+        const savedFood = {
+          ...food
+        };
+
+        profile.recentFoods =
+          profile.recentFoods.filter(
+            item =>
+              item.id !==
+              savedFood.id
+          );
+
+        profile.recentFoods.unshift(
+          savedFood
+        );
+
+        profile.recentFoods =
+          profile.recentFoods.slice(
+            0,
+            25
+          );
+      }
+
       function addSelectedFood() {
-        if (!selectedFood) return;
+        if (
+          !selectedFood
+        ) {
+          return;
+        }
 
-        const nutrition = nutritionForSelection();
+        const nutrition =
+          nutritionForSelection();
 
-        if (!nutrition || nutrition.amount <= 0) {
-          showToast("Enter an amount greater than zero.");
+        if (
+          !nutrition ||
+          nutrition.amount <= 0
+        ) {
+          showToast(
+            "Enter an amount greater than zero."
+          );
+
           return;
         }
 
         const meal =
-          document.getElementById("portionMeal").value;
+          document.getElementById(
+            "portionMeal"
+          ).value;
 
-        const log = dayLog(true);
+        const log =
+          dayLog(true);
 
         log[meal].push({
           id: uid(),
-          libraryId: selectedFood.id,
-          name: selectedFood.name,
-          amount: nutrition.amount,
-          unit: nutrition.unit,
-          calories: nutrition.calories,
-          protein: nutrition.protein,
-          carbs: nutrition.carbs,
-          fat: nutrition.fat,
-          fiber: nutrition.fiber,
-          sodium: nutrition.sodium,
-          sugar: nutrition.sugar
+
+          libraryId:
+            selectedFood.id,
+
+          name:
+            selectedFood.name,
+
+          source:
+            selectedFood.source,
+
+          amount:
+            nutrition.amount,
+
+          unit:
+            nutrition.unit,
+
+          calories:
+            nutrition.calories,
+
+          protein:
+            nutrition.protein,
+
+          carbs:
+            nutrition.carbs,
+
+          fat:
+            nutrition.fat,
+
+          fiber:
+            nutrition.fiber,
+
+          sodium:
+            nutrition.sodium,
+
+          sugar:
+            nutrition.sugar
         });
 
-        const profile = activeProfile();
-
-        profile.recentFoodIds =
-          profile.recentFoodIds.filter(
-            id => id !== selectedFood.id
-          );
-
-        profile.recentFoodIds.unshift(selectedFood.id);
-
-        profile.recentFoodIds =
-          profile.recentFoodIds.slice(0, 20);
+        rememberRecentFood(
+          selectedFood
+        );
 
         saveData();
-        closeModal("portionModal");
 
-        selectedFood = null;
+        closeModal(
+          "portionModal"
+        );
+
+        selectedFood =
+          null;
 
         renderAll();
-        showPage("today");
-        showToast("Added to your day.");
+
+        showPage(
+          "today"
+        );
+
+        showToast(
+          "Added to your day."
+        );
       }
 
       function renderRecentFoods() {
-        const profile = activeProfile();
-
-        const foods = profile.recentFoodIds
-          .map(id => FOOD_LIBRARY.find(food => food.id === id))
-          .filter(Boolean)
-          .slice(0, 6);
+        const foods =
+          getRecentFoods()
+            .slice(0, 6);
 
         const container =
-          document.getElementById("recentFoods");
+          document.getElementById(
+            "recentFoods"
+          );
 
-        if (!foods.length) {
+        if (
+          !foods.length
+        ) {
           container.innerHTML = `
-            <strong>No recent foods yet</strong>
+            <strong>
+              No recent foods yet
+            </strong>
+
             <div class="food-meta">
               Foods you log will show up here.
             </div>
           `;
+
           return;
         }
 
-        container.innerHTML = foods.map(food => `
-          <button
-            class="food-option recent-food-option"
-            data-food-id="${food.id}"
-          >
-            <div>
-              <div class="food-option-name">
-                ${escapeHTML(food.name)}
-              </div>
-              <div class="food-option-detail">
-                ${escapeHTML(food.detail)}
-              </div>
-            </div>
-            <div>›</div>
-          </button>
-        `).join("");
+        container.innerHTML =
+          foods
+            .map(
+              (
+                food,
+                index
+              ) => `
+                <button
+                  class="food-option recent-food-option"
+                  data-recent-index="${index}"
+                >
+                  <div>
+
+                    <div class="food-option-name">
+                      ${escapeHTML(
+                        food.name
+                      )}
+                    </div>
+
+                    <div class="food-option-detail">
+                      ${escapeHTML(
+                        food.detail ||
+                        food.source ||
+                        ""
+                      )}
+                    </div>
+
+                  </div>
+
+                  <div>›</div>
+                </button>
+              `
+            )
+            .join("");
 
         container
-          .querySelectorAll(".recent-food-option")
+          .querySelectorAll(
+            ".recent-food-option"
+          )
           .forEach(btn => {
-            btn.addEventListener("click", () => {
-              const food =
-                FOOD_LIBRARY.find(
-                  item => item.id === btn.dataset.foodId
-                );
+            btn.addEventListener(
+              "click",
+              () => {
+                const food =
+                  foods[
+                    Number(
+                      btn.dataset
+                        .recentIndex
+                    )
+                  ];
 
-              if (food) selectFood(food);
-            });
+                if (food) {
+                  selectFood(
+                    food
+                  );
+                }
+              }
+            );
           });
       }
 
       function addManualFood() {
         const name =
-          document.getElementById("manualName")
+          document
+            .getElementById(
+              "manualName"
+            )
             .value
             .trim();
 
         if (!name) {
-          showToast("Give the food a name first.");
+          showToast(
+            "Give the food a name first."
+          );
+
           return;
         }
 
         const meal =
-          document.getElementById("manualMeal").value;
+          document.getElementById(
+            "manualMeal"
+          ).value;
 
-        const log = dayLog(true);
+        const log =
+          dayLog(true);
 
         log[meal].push({
           id: uid(),
+
           name,
+
           amount:
-            num(document.getElementById("manualAmount").value),
+            num(
+              document.getElementById(
+                "manualAmount"
+              ).value
+            ),
+
           unit:
-            document.getElementById("manualUnit").value,
+            document.getElementById(
+              "manualUnit"
+            ).value,
+
           calories:
-            num(document.getElementById("manualCalories").value),
+            num(
+              document.getElementById(
+                "manualCalories"
+              ).value
+            ),
+
           protein:
-            num(document.getElementById("manualProtein").value),
+            num(
+              document.getElementById(
+                "manualProtein"
+              ).value
+            ),
+
           carbs:
-            num(document.getElementById("manualCarbs").value),
+            num(
+              document.getElementById(
+                "manualCarbs"
+              ).value
+            ),
+
           fat:
-            num(document.getElementById("manualFat").value),
+            num(
+              document.getElementById(
+                "manualFat"
+              ).value
+            ),
+
           fiber:
-            num(document.getElementById("manualFiber").value)
+            num(
+              document.getElementById(
+                "manualFiber"
+              ).value
+            )
         });
 
         saveData();
-        closeModal("manualModal");
 
-        document.getElementById("manualName").value = "";
+        closeModal(
+          "manualModal"
+        );
+
+        document.getElementById(
+          "manualName"
+        ).value = "";
 
         renderAll();
-        showPage("today");
-        showToast("Custom food added.");
+
+        showPage(
+          "today"
+        );
+
+        showToast(
+          "Custom food added."
+        );
       }
 
       function renderHistory() {
-        const profile = activeProfile();
+        const profile =
+          activeProfile();
 
-        const dates = Object.keys(profile.logs)
-          .sort()
-          .reverse();
+        const dates =
+          Object
+            .keys(
+              profile.logs
+            )
+            .sort()
+            .reverse();
 
         const container =
-          document.getElementById("historyList");
+          document.getElementById(
+            "historyList"
+          );
 
-        if (!dates.length) {
+        if (
+          !dates.length
+        ) {
           container.innerHTML = `
             <div class="card">
-              <strong>No history yet</strong>
+
+              <strong>
+                No history yet
+              </strong>
+
               <div class="food-meta">
                 Start logging and your days will appear here.
               </div>
+
             </div>
           `;
+
           return;
         }
 
-        container.innerHTML = dates.map(key => {
-          const totals = totalsForLog(profile.logs[key]);
-          const date = dateFromKey(key);
+        container.innerHTML =
+          dates
+            .map(key => {
+              const totals =
+                totalsForLog(
+                  profile.logs[
+                    key
+                  ]
+                );
 
-          return `
-            <div class="card history-day">
-              <div class="history-date">
-                ${date.toLocaleDateString(undefined, {
-                  weekday: "short",
-                  month: "short",
-                  day: "numeric"
-                })}
-              </div>
+              const date =
+                dateFromKey(
+                  key
+                );
 
-              <div class="history-macros">
-                ${Math.round(totals.calories)} cal
-                · ${round(totals.protein)}g protein
-                · ${round(totals.carbs)}g carbs
-                · ${round(totals.fat)}g fat
-              </div>
-            </div>
-          `;
-        }).join("");
+              return `
+                <div class="card history-day">
+
+                  <div class="history-date">
+                    ${date.toLocaleDateString(
+                      undefined,
+                      {
+                        weekday:
+                          "short",
+
+                        month:
+                          "short",
+
+                        day:
+                          "numeric"
+                      }
+                    )}
+                  </div>
+
+                  <div class="history-macros">
+                    ${Math.round(
+                      totals.calories
+                    )} cal
+                    ·
+                    ${round(
+                      totals.protein
+                    )}g protein
+                    ·
+                    ${round(
+                      totals.carbs
+                    )}g carbs
+                    ·
+                    ${round(
+                      totals.fat
+                    )}g fat
+                  </div>
+
+                </div>
+              `;
+            })
+            .join("");
       }
 
       function openGoals() {
-        const goals = activeProfile().goals;
+        const goals =
+          activeProfile()
+            .goals;
 
-        document.getElementById("goalCaloriesInput").value =
+        document.getElementById(
+          "goalCaloriesInput"
+        ).value =
           goals.calories;
 
-        document.getElementById("goalProteinInput").value =
+        document.getElementById(
+          "goalProteinInput"
+        ).value =
           goals.protein;
 
-        document.getElementById("goalCarbsInput").value =
+        document.getElementById(
+          "goalCarbsInput"
+        ).value =
           goals.carbs;
 
-        document.getElementById("goalFatInput").value =
+        document.getElementById(
+          "goalFatInput"
+        ).value =
           goals.fat;
 
-        document.getElementById("goalFiberInput").value =
+        document.getElementById(
+          "goalFiberInput"
+        ).value =
           goals.fiber;
 
-        openModal("goalsModal");
+        openModal(
+          "goalsModal"
+        );
       }
 
       function saveGoals() {
-        const goals = activeProfile().goals;
+        const goals =
+          activeProfile()
+            .goals;
 
         goals.calories =
-          num(document.getElementById("goalCaloriesInput").value);
+          num(
+            document.getElementById(
+              "goalCaloriesInput"
+            ).value
+          );
 
         goals.protein =
-          num(document.getElementById("goalProteinInput").value);
+          num(
+            document.getElementById(
+              "goalProteinInput"
+            ).value
+          );
 
         goals.carbs =
-          num(document.getElementById("goalCarbsInput").value);
+          num(
+            document.getElementById(
+              "goalCarbsInput"
+            ).value
+          );
 
         goals.fat =
-          num(document.getElementById("goalFatInput").value);
+          num(
+            document.getElementById(
+              "goalFatInput"
+            ).value
+          );
 
         goals.fiber =
-          num(document.getElementById("goalFiberInput").value);
+          num(
+            document.getElementById(
+              "goalFiberInput"
+            ).value
+          );
 
         saveData();
-        closeModal("goalsModal");
+
+        closeModal(
+          "goalsModal"
+        );
+
         renderAll();
-        showToast("Goals updated.");
+
+        showToast(
+          "Goals updated."
+        );
       }
 
       function addProfile() {
         const name =
-          prompt("Profile name:");
+          prompt(
+            "Profile name:"
+          );
 
-        if (!name || !name.trim()) return;
+        if (
+          !name ||
+          !name.trim()
+        ) {
+          return;
+        }
 
-        const id = `profile-${uid()}`;
+        const id =
+          `profile-${uid()}`;
 
         data.profiles.push({
           id,
-          name: name.trim(),
+
+          name:
+            name.trim(),
+
           goals: {
             calories: 2200,
             protein: 170,
@@ -2256,36 +3338,66 @@
             fat: 70,
             fiber: 30
           },
+
           logs: {},
-          recentFoodIds: [],
-          favoriteFoodIds: []
+          recentFoods: []
         });
 
-        data.activeProfileId = id;
+        data.activeProfileId =
+          id;
 
         saveData();
         renderAll();
-        showToast("Profile added.");
+
+        showToast(
+          "Profile added."
+        );
       }
 
       function exportData() {
-        const blob = new Blob(
-          [JSON.stringify(data, null, 2)],
-          { type: "application/json" }
+        const blob =
+          new Blob(
+            [
+              JSON.stringify(
+                data,
+                null,
+                2
+              )
+            ],
+            {
+              type:
+                "application/json"
+            }
+          );
+
+        const url =
+          URL.createObjectURL(
+            blob
+          );
+
+        const a =
+          document.createElement(
+            "a"
+          );
+
+        a.href =
+          url;
+
+        a.download =
+          `next-bite-backup-${dateKey(
+            new Date()
+          )}.json`;
+
+        document.body.appendChild(
+          a
         );
 
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-
-        a.href = url;
-        a.download =
-          `next-bite-backup-${dateKey(new Date())}.json`;
-
-        document.body.appendChild(a);
         a.click();
         a.remove();
 
-        URL.revokeObjectURL(url);
+        URL.revokeObjectURL(
+          url
+        );
       }
 
       function renderAll() {
@@ -2295,157 +3407,365 @@
         renderHistory();
       }
 
-      // Navigation
-      document.querySelectorAll(".nav-btn").forEach(btn => {
-        btn.addEventListener("click", () => {
-          showPage(btn.dataset.page);
-        });
-      });
-
-      // Modal close buttons
-      document.querySelectorAll("[data-close]").forEach(btn => {
-        btn.addEventListener("click", () => {
-          closeModal(btn.dataset.close);
-        });
-      });
-
-      // Profile switching
-      document
-        .getElementById("profileSelect")
-        .addEventListener("change", event => {
-          data.activeProfileId = event.target.value;
-          saveData();
-          renderAll();
-        });
-
-      // Date navigation
-      document
-        .getElementById("prevDay")
-        .addEventListener("click", () => {
-          const date = dateFromKey(selectedDate);
-          date.setDate(date.getDate() - 1);
-          selectedDate = dateKey(date);
-          renderToday();
-        });
+      // NAVIGATION
 
       document
-        .getElementById("nextDay")
-        .addEventListener("click", () => {
-          const date = dateFromKey(selectedDate);
-          date.setDate(date.getDate() + 1);
-          selectedDate = dateKey(date);
-          renderToday();
-        });
-
-      // Food library
-      document
-        .getElementById("browseFoodBtn")
-        .addEventListener("click", openFoodLibrary);
-
-      document
-        .getElementById("savedFoodsBtn")
-        .addEventListener("click", () => {
-          currentFoodTab = "recent";
-          document.getElementById("foodSearch").value = "";
-
-          document.querySelectorAll("[data-food-tab]").forEach(tab => {
-            tab.classList.toggle(
-              "active",
-              tab.dataset.foodTab === "recent"
-            );
-          });
-
-          renderFoodResults();
-          openModal("foodLibraryModal");
-        });
-
-      document
-        .getElementById("foodSearch")
-        .addEventListener("input", renderFoodResults);
-
-      document.querySelectorAll("[data-food-tab]").forEach(tab => {
-        tab.addEventListener("click", () => {
-          currentFoodTab = tab.dataset.foodTab;
-
-          document.querySelectorAll("[data-food-tab]").forEach(item => {
-            item.classList.toggle(
-              "active",
-              item === tab
-            );
-          });
-
-          renderFoodResults();
-        });
-      });
-
-      // Portion
-      document
-        .getElementById("portionAmount")
-        .addEventListener("input", updateNutritionPreview);
-
-      document
-        .getElementById("portionUnit")
-        .addEventListener("change", updateNutritionPreview);
-
-      document
-        .getElementById("addSelectedFoodBtn")
-        .addEventListener("click", addSelectedFood);
-
-      // Custom
-      document
-        .getElementById("manualBtn")
-        .addEventListener("click", () => {
-          openModal("manualModal");
-        });
-
-      document
-        .getElementById("addManualBtn")
-        .addEventListener("click", addManualFood);
-
-      // Barcode placeholder
-      document
-        .getElementById("barcodeBtn")
-        .addEventListener("click", () => {
-          showToast(
-            "Barcode camera is next. Food library comes first."
+        .querySelectorAll(
+          ".nav-btn"
+        )
+        .forEach(btn => {
+          btn.addEventListener(
+            "click",
+            () => {
+              showPage(
+                btn.dataset.page
+              );
+            }
           );
         });
 
-      // Goals
-      document
-        .getElementById("goalsBtn")
-        .addEventListener("click", openGoals);
+      // CLOSE MODALS
 
       document
-        .getElementById("saveGoalsBtn")
-        .addEventListener("click", saveGoals);
+        .querySelectorAll(
+          "[data-close]"
+        )
+        .forEach(btn => {
+          btn.addEventListener(
+            "click",
+            () => {
+              closeModal(
+                btn.dataset.close
+              );
+            }
+          );
+        });
 
-      // Profiles
-      document
-        .getElementById("addProfileBtn")
-        .addEventListener("click", addProfile);
+      // PROFILE SWITCHING
 
-      // Export
       document
-        .getElementById("exportBtn")
-        .addEventListener("click", exportData);
+        .getElementById(
+          "profileSelect"
+        )
+        .addEventListener(
+          "change",
+          event => {
+            data.activeProfileId =
+              event.target.value;
+
+            saveData();
+            renderAll();
+          }
+        );
+
+      // DATE NAVIGATION
+
+      document
+        .getElementById(
+          "prevDay"
+        )
+        .addEventListener(
+          "click",
+          () => {
+            const date =
+              dateFromKey(
+                selectedDate
+              );
+
+            date.setDate(
+              date.getDate() - 1
+            );
+
+            selectedDate =
+              dateKey(date);
+
+            renderToday();
+          }
+        );
+
+      document
+        .getElementById(
+          "nextDay"
+        )
+        .addEventListener(
+          "click",
+          () => {
+            const date =
+              dateFromKey(
+                selectedDate
+              );
+
+            date.setDate(
+              date.getDate() + 1
+            );
+
+            selectedDate =
+              dateKey(date);
+
+            renderToday();
+          }
+        );
+
+      // FOOD SEARCH
+
+      document
+        .getElementById(
+          "browseFoodBtn"
+        )
+        .addEventListener(
+          "click",
+          openFoodLibrary
+        );
+
+      document
+        .getElementById(
+          "savedFoodsBtn"
+        )
+        .addEventListener(
+          "click",
+          () => {
+            currentFoodTab =
+              "recent";
+
+            liveFoodResults =
+              [];
+
+            document.getElementById(
+              "foodSearch"
+            ).value = "";
+
+            document.getElementById(
+              "liveSearchStatus"
+            ).textContent = "";
+
+            document
+              .querySelectorAll(
+                "[data-food-tab]"
+              )
+              .forEach(tab => {
+                tab.classList.toggle(
+                  "active",
+                  tab.dataset.foodTab ===
+                    "recent"
+                );
+              });
+
+            renderFoodResults();
+
+            openModal(
+              "foodLibraryModal"
+            );
+          }
+        );
+
+      document
+        .getElementById(
+          "foodSearch"
+        )
+        .addEventListener(
+          "input",
+          () => {
+            liveFoodResults =
+              [];
+
+            document.getElementById(
+              "liveSearchStatus"
+            ).textContent = "";
+
+            renderFoodResults();
+          }
+        );
+
+      document
+        .getElementById(
+          "foodSearch"
+        )
+        .addEventListener(
+          "keydown",
+          event => {
+            if (
+              event.key ===
+              "Enter"
+            ) {
+              event.preventDefault();
+
+              searchLiveFoodDatabase();
+            }
+          }
+        );
+
+      document
+        .getElementById(
+          "liveFoodSearchBtn"
+        )
+        .addEventListener(
+          "click",
+          searchLiveFoodDatabase
+        );
+
+      document
+        .querySelectorAll(
+          "[data-food-tab]"
+        )
+        .forEach(tab => {
+          tab.addEventListener(
+            "click",
+            () => {
+              currentFoodTab =
+                tab.dataset.foodTab;
+
+              document
+                .querySelectorAll(
+                  "[data-food-tab]"
+                )
+                .forEach(item => {
+                  item.classList.toggle(
+                    "active",
+                    item === tab
+                  );
+                });
+
+              renderFoodResults();
+            }
+          );
+        });
+
+      // PORTION
+
+      document
+        .getElementById(
+          "portionAmount"
+        )
+        .addEventListener(
+          "input",
+          updateNutritionPreview
+        );
+
+      document
+        .getElementById(
+          "portionUnit"
+        )
+        .addEventListener(
+          "change",
+          updateNutritionPreview
+        );
+
+      document
+        .getElementById(
+          "addSelectedFoodBtn"
+        )
+        .addEventListener(
+          "click",
+          addSelectedFood
+        );
+
+      // CUSTOM FOOD
+
+      document
+        .getElementById(
+          "manualBtn"
+        )
+        .addEventListener(
+          "click",
+          () => {
+            openModal(
+              "manualModal"
+            );
+          }
+        );
+
+      document
+        .getElementById(
+          "addManualBtn"
+        )
+        .addEventListener(
+          "click",
+          addManualFood
+        );
+
+      // BARCODE
+
+      document
+        .getElementById(
+          "barcodeBtn"
+        )
+        .addEventListener(
+          "click",
+          () => {
+            showToast(
+              "Barcode camera is next."
+            );
+          }
+        );
+
+      // GOALS
+
+      document
+        .getElementById(
+          "goalsBtn"
+        )
+        .addEventListener(
+          "click",
+          openGoals
+        );
+
+      document
+        .getElementById(
+          "saveGoalsBtn"
+        )
+        .addEventListener(
+          "click",
+          saveGoals
+        );
+
+      // PROFILES
+
+      document
+        .getElementById(
+          "addProfileBtn"
+        )
+        .addEventListener(
+          "click",
+          addProfile
+        );
+
+      // EXPORT
+
+      document
+        .getElementById(
+          "exportBtn"
+        )
+        .addEventListener(
+          "click",
+          exportData
+        );
 
       renderAll();
 
     })();
 
     // Register NEXT // BITE service worker
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker
-          .register("./sw.js")
-          .catch(error => {
-            console.log(
-              "Service worker registration failed:",
-              error
-            );
-          });
-      });
+
+    if (
+      "serviceWorker" in
+      navigator
+    ) {
+      window.addEventListener(
+        "load",
+        () => {
+          navigator
+            .serviceWorker
+            .register(
+              "./sw.js"
+            )
+            .catch(error => {
+              console.log(
+                "Service worker registration failed:",
+                error
+              );
+            });
+        }
+      );
     }
   </script>
 
