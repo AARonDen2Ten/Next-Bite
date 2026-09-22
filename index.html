@@ -738,6 +738,7 @@
       }
     }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 </head>
 
 <body>
@@ -927,6 +928,64 @@
       </div>
 
       <div id="foodResults"></div>
+    </div>
+  </div>
+
+  <!-- BARCODE SCANNER -->
+  <div id="barcodeModal" class="modal hidden">
+    <div class="sheet">
+      <div class="sheet-head">
+        <h2>Scan Barcode</h2>
+        <button class="icon-button" id="closeBarcodeBtn">×</button>
+      </div>
+
+      <div
+        id="barcodeReader"
+        style="
+          overflow:hidden;
+          border-radius:22px;
+          background:#050605;
+          min-height:260px;
+        "
+      ></div>
+
+      <div
+        id="barcodeStatus"
+        class="search-status"
+        style="margin-top:14px;"
+      >
+        Point the camera at the product barcode.
+      </div>
+
+      <div
+        style="
+          display:flex;
+          align-items:center;
+          gap:12px;
+          margin:20px 0;
+          color:#777f79;
+          font-weight:800;
+        "
+      >
+        <span style="height:1px;background:#293029;flex:1;"></span>
+        OR
+        <span style="height:1px;background:#293029;flex:1;"></span>
+      </div>
+
+      <div class="field">
+        <label for="manualBarcode">Enter Barcode</label>
+        <input
+          id="manualBarcode"
+          type="text"
+          inputmode="numeric"
+          autocomplete="off"
+          placeholder="UPC or EAN number"
+        />
+      </div>
+
+      <button class="primary" id="lookupBarcodeBtn">
+        Find Product
+      </button>
     </div>
   </div>
 
@@ -1315,6 +1374,10 @@
       let currentFoodTab = "all";
       let selectedFood = null;
       let liveFoodResults = [];
+
+      let barcodeScanner = null;
+      let barcodeScannerRunning = false;
+      let barcodeLookupBusy = false;
 
       function loadData() {
         try {
@@ -2606,6 +2669,312 @@
           });
       }
 
+      function normalizeBarcodeProduct(product) {
+        if (!product) {
+          return null;
+        }
+
+        const servingQuantity =
+          num(product.servingQuantity);
+
+        const servingFactor =
+          servingQuantity > 0
+            ? servingQuantity / 100
+            : 0;
+
+        return {
+          ...product,
+
+          category:
+            "database",
+
+          detail:
+            [
+              product.brand,
+              product.quantity
+            ]
+              .filter(Boolean)
+              .join(" • ") ||
+            "Packaged food",
+
+          externalCode:
+            product.code || "",
+
+          source:
+            product.source ||
+            "OPEN FOOD FACTS",
+
+          servingCalories:
+            servingFactor > 0
+              ? round(
+                  num(product.calories) *
+                  servingFactor,
+                  0
+                )
+              : null,
+
+          servingProtein:
+            servingFactor > 0
+              ? round(
+                  num(product.protein) *
+                  servingFactor,
+                  1
+                )
+              : null
+        };
+      }
+
+      async function lookupBarcode(code) {
+        if (barcodeLookupBusy) {
+          return;
+        }
+
+        const cleanCode =
+          String(code || "")
+            .replace(/\D/g, "");
+
+        const status =
+          document.getElementById(
+            "barcodeStatus"
+          );
+
+        if (
+          cleanCode.length < 6
+        ) {
+          status.textContent =
+            "Enter a valid barcode number.";
+
+          return;
+        }
+
+        barcodeLookupBusy =
+          true;
+
+        status.textContent =
+          "Looking up product...";
+
+        document.getElementById(
+          "manualBarcode"
+        ).value =
+          cleanCode;
+
+        try {
+          const url =
+            "https://next-bite-api-git.aaronrozsa.workers.dev/product?code=" +
+            encodeURIComponent(
+              cleanCode
+            );
+
+          const response =
+            await fetch(
+              url,
+              {
+                method: "GET",
+                headers: {
+                  Accept:
+                    "application/json"
+                }
+              }
+            );
+
+          if (
+            response.status === 404
+          ) {
+            throw new Error(
+              "NOT_FOUND"
+            );
+          }
+
+          if (
+            !response.ok
+          ) {
+            throw new Error(
+              `Barcode lookup failed: ${response.status}`
+            );
+          }
+
+          const result =
+            await response.json();
+
+          const food =
+            normalizeBarcodeProduct(
+              result.product
+            );
+
+          if (!food) {
+            throw new Error(
+              "NOT_FOUND"
+            );
+          }
+
+          await stopBarcodeScanner();
+
+          closeModal(
+            "barcodeModal"
+          );
+
+          selectFood(
+            food
+          );
+
+        } catch (error) {
+          console.error(error);
+
+          if (
+            error.message ===
+            "NOT_FOUND"
+          ) {
+            status.textContent =
+              "Product not found in the database. You can enter it as a Custom Food.";
+          } else {
+            status.textContent =
+              "Couldn't look up that barcode. Try again.";
+          }
+
+        } finally {
+          barcodeLookupBusy =
+            false;
+        }
+      }
+
+      async function startBarcodeScanner() {
+        const status =
+          document.getElementById(
+            "barcodeStatus"
+          );
+
+        status.textContent =
+          "Starting camera...";
+
+        if (
+          typeof Html5Qrcode ===
+          "undefined"
+        ) {
+          status.textContent =
+            "Camera scanner couldn't load. Enter the barcode number below.";
+
+          return;
+        }
+
+        try {
+          barcodeScanner =
+            barcodeScanner ||
+            new Html5Qrcode(
+              "barcodeReader"
+            );
+
+          const config = {
+            fps: 10,
+            qrbox: {
+              width: 280,
+              height: 150
+            },
+            aspectRatio:
+              1.777778,
+            formatsToSupport: [
+              Html5QrcodeSupportedFormats.UPC_A,
+              Html5QrcodeSupportedFormats.UPC_E,
+              Html5QrcodeSupportedFormats.EAN_13,
+              Html5QrcodeSupportedFormats.EAN_8
+            ]
+          };
+
+          await barcodeScanner.start(
+            {
+              facingMode:
+                "environment"
+            },
+            config,
+            decodedText => {
+              if (
+                barcodeLookupBusy
+              ) {
+                return;
+              }
+
+              status.textContent =
+                "Barcode found.";
+
+              lookupBarcode(
+                decodedText
+              );
+            },
+            () => {
+              // Scanning continuously.
+            }
+          );
+
+          barcodeScannerRunning =
+            true;
+
+          status.textContent =
+            "Point the camera at the product barcode.";
+
+        } catch (error) {
+          console.error(error);
+
+          barcodeScannerRunning =
+            false;
+
+          status.textContent =
+            "Camera unavailable. Allow camera access, or enter the barcode number below.";
+        }
+      }
+
+      async function stopBarcodeScanner() {
+        if (
+          !barcodeScanner ||
+          !barcodeScannerRunning
+        ) {
+          return;
+        }
+
+        try {
+          await barcodeScanner.stop();
+        } catch (error) {
+          console.error(error);
+        }
+
+        barcodeScannerRunning =
+          false;
+      }
+
+      async function openBarcodeScanner() {
+        document.getElementById(
+          "manualBarcode"
+        ).value = "";
+
+        document.getElementById(
+          "barcodeStatus"
+        ).textContent =
+          "Point the camera at the product barcode.";
+
+        openModal(
+          "barcodeModal"
+        );
+
+        // Let the modal finish opening before
+        // the camera attaches to its reader.
+        await new Promise(
+          resolve =>
+            setTimeout(
+              resolve,
+              120
+            )
+        );
+
+        startBarcodeScanner();
+      }
+
+      async function closeBarcodeScanner() {
+        await stopBarcodeScanner();
+
+        closeModal(
+          "barcodeModal"
+        );
+      }
+
+
       function selectFood(food) {
         selectedFood =
           food;
@@ -3811,10 +4180,50 @@
         )
         .addEventListener(
           "click",
+          openBarcodeScanner
+        );
+
+      document
+        .getElementById(
+          "closeBarcodeBtn"
+        )
+        .addEventListener(
+          "click",
+          closeBarcodeScanner
+        );
+
+      document
+        .getElementById(
+          "lookupBarcodeBtn"
+        )
+        .addEventListener(
+          "click",
           () => {
-            showToast(
-              "Barcode camera is next."
+            lookupBarcode(
+              document.getElementById(
+                "manualBarcode"
+              ).value
             );
+          }
+        );
+
+      document
+        .getElementById(
+          "manualBarcode"
+        )
+        .addEventListener(
+          "keydown",
+          event => {
+            if (
+              event.key ===
+              "Enter"
+            ) {
+              event.preventDefault();
+
+              lookupBarcode(
+                event.currentTarget.value
+              );
+            }
           }
         );
 
