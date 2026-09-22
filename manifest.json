@@ -1,0 +1,19 @@
+{
+  "name": "NEXT // BITE",
+  "short_name": "Next Bite",
+  "description": "Eat with purpose. Track calories, protein, macros, meals and nutrition goals.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#080a09",
+  "theme_color": "#080a09",
+  "icons": [
+    {
+      "src": "apple-touch-icon-bite.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
