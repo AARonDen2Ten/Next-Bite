@@ -3064,7 +3064,21 @@
       saveData();
       renderAll();
 
+         saveData();
+      renderAll();
+
     })();
+
+    // Register NEXT // BITE service worker
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker
+          .register("./sw.js")
+          .catch(error => {
+            console.log("Service worker registration failed:", error);
+          });
+      });
+    }
   </script>
 
 </body>
