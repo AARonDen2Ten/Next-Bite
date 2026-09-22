@@ -2238,30 +2238,71 @@
               result.products ||
               []
             )
-              .map(product => ({
-                ...product,
-                category:
-                  product.category ||
-                  "database",
-                detail:
-                  [
-                    product.brand,
-                    product.quantity
-                  ]
-                    .filter(Boolean)
-                    .join(" • ") ||
-                  product.detail ||
-                  "Packaged food",
-                externalCode:
-                  product.code || "",
-                source:
-                  product.source ||
-                  "OPEN FOOD FACTS"
-              }))
+              .map(product => {
+                const servingQuantity =
+                  Number(
+                    product.servingQuantity
+                  ) || 0;
+
+                const servingFactor =
+                  servingQuantity > 0
+                    ? servingQuantity / 100
+                    : 0;
+
+                return {
+                  ...product,
+                  category:
+                    product.category ||
+                    "database",
+                  detail:
+                    [
+                      product.brand,
+                      product.quantity
+                    ]
+                      .filter(Boolean)
+                      .join(" • ") ||
+                    product.detail ||
+                    "Packaged food",
+                  externalCode:
+                    product.code || "",
+                  source:
+                    product.source ||
+                    "OPEN FOOD FACTS",
+                  servingCalories:
+                    servingFactor > 0
+                      ? round(
+                          num(product.calories) *
+                          servingFactor,
+                          0
+                        )
+                      : null,
+                  servingProtein:
+                    servingFactor > 0
+                      ? round(
+                          num(product.protein) *
+                          servingFactor,
+                          1
+                        )
+                      : null,
+                  resultQuality:
+                    [
+                      product.brand,
+                      product.servingSize,
+                      servingQuantity > 0,
+                      num(product.calories) > 0,
+                      num(product.protein) > 0
+                    ].filter(Boolean).length
+                };
+              })
               .filter(
                 product =>
                   product &&
                   product.name
+              )
+              .sort(
+                (a, b) =>
+                  (b.resultQuality || 0) -
+                  (a.resultQuality || 0)
               );
 
           if (
@@ -2359,51 +2400,98 @@
                 (
                   food,
                   index
-                ) => `
-                  <button
-                    class="food-option"
-                    data-live-food-index="${index}"
-                  >
-                    <div>
+                ) => {
+                  const hasServing =
+                    num(
+                      food.servingQuantity
+                    ) > 0;
 
-                      <div class="food-option-name">
-                        ${escapeHTML(
-                          food.name
-                        )}
+                  const servingLabel =
+                    food.servingSize ||
+                    (
+                      hasServing
+                        ? `1 serving (${round(
+                            food.servingQuantity,
+                            1
+                          )} g)`
+                        : ""
+                    );
+
+                  return `
+                    <button
+                      class="food-option"
+                      data-live-food-index="${index}"
+                    >
+                      <div>
+
+                        <div class="food-option-name">
+                          ${escapeHTML(
+                            food.name
+                          )}
+                        </div>
+
+                        <div class="food-option-detail">
+                          ${escapeHTML(
+                            food.detail
+                          )}
+                        </div>
+
+                        ${
+                          servingLabel
+                            ? `
+                              <div class="food-option-detail">
+                                ${escapeHTML(
+                                  servingLabel
+                                )}
+                              </div>
+                            `
+                            : ""
+                        }
+
+                        ${
+                          hasServing
+                            ? `
+                              <div class="food-option-detail">
+                                ${round(
+                                  food.servingCalories,
+                                  0
+                                )} cal
+                                •
+                                ${round(
+                                  food.servingProtein,
+                                  1
+                                )}g protein
+                                per serving
+                              </div>
+                            `
+                            : ""
+                        }
+
                       </div>
 
-                      <div class="food-option-detail">
-                        ${escapeHTML(
-                          food.detail
-                        )}
+                      <div class="food-option-cal">
+                        ${
+                          hasServing
+                            ? round(
+                                food.servingCalories,
+                                0
+                              )
+                            : Math.round(
+                                food.calories
+                              )
+                        }
+
+                        <small>
+                          ${
+                            hasServing
+                              ? "per serving"
+                              : "per 100g"
+                          }
+                        </small>
                       </div>
-
-                      ${
-                        food.servingSize
-                          ? `
-                            <div class="food-option-detail">
-                              Label serving:
-                              ${escapeHTML(
-                                food.servingSize
-                              )}
-                            </div>
-                          `
-                          : ""
-                      }
-
-                    </div>
-
-                    <div class="food-option-cal">
-                      ${Math.round(
-                        food.calories
-                      )}
-
-                      <small>
-                        per 100g
-                      </small>
-                    </div>
-                  </button>
-                `
+                    </button>
+                  `;
+                }
               )
               .join("")}
           `;
@@ -2570,15 +2658,33 @@
             `)
             .join("");
 
+        const hasServing =
+          num(
+            food.servingQuantity
+          ) > 0 &&
+          (
+            food.units || []
+          ).includes(
+            "serving"
+          );
+
         unitSelect.value =
-          food.baseUnit ||
-          "g";
+          hasServing
+            ? "serving"
+            : (
+                food.baseUnit ||
+                "g"
+              );
 
         document.getElementById(
           "portionAmount"
         ).value =
-          food.baseAmount ||
-          100;
+          hasServing
+            ? 1
+            : (
+                food.baseAmount ||
+                100
+              );
 
         updateNutritionPreview();
 
@@ -2646,6 +2752,21 @@
             unit ===
             "serving"
           ) {
+            const servingQuantity =
+              num(
+                food.servingQuantity
+              );
+
+            if (
+              servingQuantity > 0
+            ) {
+              return (
+                amount *
+                servingQuantity /
+                food.baseAmount
+              );
+            }
+
             return amount;
           }
         }
