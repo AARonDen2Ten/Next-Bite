@@ -2368,6 +2368,11 @@
                   (a.resultQuality || 0)
               );
 
+            liveFoodResults =
+              rankConflictingProducts(
+                liveFoodResults
+              );
+
           if (
             !liveFoodResults.length
           ) {
@@ -2972,6 +2977,220 @@
         closeModal(
           "barcodeModal"
         );
+      }
+
+
+      function rankConflictingProducts(products) {
+        const normalized =
+          products.map(
+            (
+              product,
+              index
+            ) => ({
+              product,
+              index,
+              nameKey:
+                String(
+                  product.name || ""
+                )
+                  .toLowerCase()
+                  .replace(
+                    /[^a-z0-9]+/g,
+                    " "
+                  )
+                  .trim(),
+              brandKey:
+                String(
+                  product.brand || ""
+                )
+                  .toLowerCase()
+                  .replace(
+                    /[^a-z0-9]+/g,
+                    " "
+                  )
+                  .trim(),
+              serving:
+                num(
+                  product.servingQuantity
+                ),
+              servingCalories:
+                num(
+                  product.servingCalories
+                ),
+              servingProtein:
+                num(
+                  product.servingProtein
+                )
+            })
+          );
+
+        function similarText(
+          a,
+          b
+        ) {
+          if (!a || !b) {
+            return false;
+          }
+
+          return (
+            a === b ||
+            a.includes(b) ||
+            b.includes(a)
+          );
+        }
+
+        function similarServing(
+          a,
+          b
+        ) {
+          if (
+            a <= 0 ||
+            b <= 0
+          ) {
+            return false;
+          }
+
+          const difference =
+            Math.abs(a - b);
+
+          const largest =
+            Math.max(a, b);
+
+          return (
+            difference /
+            largest <=
+            0.08
+          );
+        }
+
+        function getConflictPenalty(
+          item
+        ) {
+          if (
+            item.serving <= 0 ||
+            item.servingCalories <= 0
+          ) {
+            return 0;
+          }
+
+          const peers =
+            normalized.filter(
+              other =>
+                other.index !==
+                  item.index &&
+                similarText(
+                  item.nameKey,
+                  other.nameKey
+                ) &&
+                (
+                  !item.brandKey ||
+                  !other.brandKey ||
+                  similarText(
+                    item.brandKey,
+                    other.brandKey
+                  )
+                ) &&
+                similarServing(
+                  item.serving,
+                  other.serving
+                ) &&
+                other.servingCalories >
+                  0
+            );
+
+          if (
+            peers.length < 2
+          ) {
+            return 0;
+          }
+
+          const calorieValues =
+            peers
+              .map(
+                peer =>
+                  peer.servingCalories
+              )
+              .sort(
+                (a, b) =>
+                  a - b
+              );
+
+          const middle =
+            Math.floor(
+              calorieValues.length /
+              2
+            );
+
+          const medianCalories =
+            calorieValues.length % 2
+              ? calorieValues[middle]
+              : (
+                  calorieValues[
+                    middle - 1
+                  ] +
+                  calorieValues[
+                    middle
+                  ]
+                ) /
+                2;
+
+          if (
+            medianCalories <= 0
+          ) {
+            return 0;
+          }
+
+          const calorieRatio =
+            item.servingCalories /
+            medianCalories;
+
+          // Only demote a record when at least two
+          // near-identical peers agree and this result
+          // is dramatically different. We do not alter
+          // the nutrition data itself.
+          if (
+            calorieRatio >= 1.8 ||
+            calorieRatio <= 0.55
+          ) {
+            return 100;
+          }
+
+          return 0;
+        }
+
+        return normalized
+          .map(item => ({
+            ...item,
+            conflictPenalty:
+              getConflictPenalty(
+                item
+              )
+          }))
+          .sort(
+            (a, b) =>
+              (
+                a.conflictPenalty -
+                b.conflictPenalty
+              ) ||
+              (
+                (
+                  b.product.resultQuality ||
+                  0
+                ) -
+                (
+                  a.product.resultQuality ||
+                  0
+                )
+              ) ||
+              (
+                a.index -
+                b.index
+              )
+          )
+          .map(
+            item =>
+              item.product
+          );
       }
 
 
